@@ -1,0 +1,7 @@
+# Register the example Workflow Studio nodes. Sessions started by agent-prompt
+# nodes use the directory dsh was launched from as their workspace.
+- insert:
+    - id: workflow-demo-node
+      name: dsh-workflow-demo-node
+      config:
+        workspacePath: !!js process.cwd()

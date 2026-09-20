@@ -1,0 +1,63 @@
+{
+  "name": "dsh-workflow-demo-node",
+  "description": "Example Workflow Studio nodes: agent prompt, human approval, and basic value, arithmetic, branch, merge, and output nodes",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts",
+    "cordis.patch.yml"
+  ],
+  "license": "Apache-2.0",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "tsdown && tsc -p tsconfig.json",
+    "prepare": "pnpm build",
+    "test": "node --import tsx/esm --test tests/**/*.spec.ts",
+    "typecheck": "tsc -p tsconfig.test.json"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "dsh-workflow-studio": "*"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-llm": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-session": "0.1.6-alpha.2",
+    "@deepseek-ai/schemastery": "^3.18.2",
+    "jexl": "2.3.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-agent": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-agent-default-model": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-agent-presets": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-permission-presets": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-storage": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-storage-domain": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-storage-json": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-user-questions": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-workspace": "0.1.6-alpha.2",
+    "@types/jexl": "^2.3.4",
+    "@types/node": "^24.10.0",
+    "dsh-workflow-studio": "link:../dsh-workflow-studio",
+    "tsdown": "^0.22.2",
+    "tsx": "^4.19.0",
+    "typescript": "^6.0.3"
+  }
+}
