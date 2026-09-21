@@ -1,5 +1,5 @@
 ---
-description: "Example Workflow Studio nodes: an agent-prompt node, a human-approval node, and basic value, arithmetic, branch, merge, and output nodes."
+description: "Example Workflow Studio nodes: an agent-prompt node, a human-approval node, and the arithmetic and compare nodes."
 kind: "package-bundle"
 ---
 
@@ -7,18 +7,16 @@ kind: "package-bundle"
 
 ## Summary
 
-`dsh-workflow-demo-node` supplies every node that [Workflow Studio](../dsh-workflow-studio/README.md) offers; Studio itself registers none. One Cordis plugin registers seven nodes, all built on Studio's `WorkflowNode` base class:
+`dsh-workflow-demo-node` supplies every node that [Workflow Studio](../dsh-workflow-studio/README.md) offers; Studio itself registers none. One Cordis plugin registers four nodes, all built on Studio's `WorkflowNode` base class:
 
 | Type | Label | Purpose |
 |---|---|---|
 | `agent-prompt` | Agent 提示词 | Run a prompt in a new agent Session under a selected agent preset and output the final reply |
 | `human-approval` | 人工审批 | Pause until a person approves or rejects |
-| `input` | 输入 | Output a configured number |
 | `arithmetic` | 四则运算 | Add, subtract, multiply, or divide two numbers |
 | `compare` | 条件判断 | Evaluate an expression over two inputs and output a boolean |
-| `output` | 输出 | Collect a final value |
 
-Execution order and branching are Studio's, not this plugin's: feed `compare`'s boolean into Studio's `branch` node and wire its `true` and `false` execution pins to the nodes each path should run. A node runs when every incoming execution edge has fired, so a node with none runs whenever the run reaches it.
+A value that a workflow takes in or gives back is Studio's, not this plugin's: declare it as a workflow input or output and wire the boundary card, rather than reaching for a node that holds a constant or collects a result. Execution order and branching are Studio's too: feed `compare`'s boolean into Studio's `branch` node and wire its `true` and `false` execution pins to the nodes each path should run. A node runs when every incoming execution edge has fired, so a node with none runs whenever the run reaches it.
 
 ## Install
 
@@ -79,10 +77,8 @@ The node pauses its step of the workflow until a person decides. It asks its `qu
 
 ## Basic nodes
 
-- `input` outputs `config.defaultValue` (default `0`) and fails when it is not a finite number.
 - `arithmetic` applies `config.operator` (`add`, `subtract`, `multiply`, or `divide`) to the numeric `left` and `right` inputs and outputs `result`; division by zero fails.
 - `compare` evaluates `config.expression` (default `left === right`) as a JEXL expression over the required `left` and `right` inputs of type `any`, then outputs the boolean `result`. Expressions support JavaScript-style comparison, arithmetic, property access, `&&`, `||`, `!`, and ternary operators, including `===` and `!==`. The evaluator exposes no Host globals or functions, rejects statements and assignment, and requires a boolean result. Feed `result` into Studio's `branch` node to fork execution.
-- `output` passes its `input` through as `output` and logs it.
 
 ## Configuration
 

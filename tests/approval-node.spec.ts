@@ -5,10 +5,13 @@
 import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
-import { EdgeId, NodeId, WorkflowNodeRegistry, type RunId } from 'dsh-workflow-studio'
+import {
+  EdgeId, NodeId, WORKFLOW_INPUT_TYPE, WORKFLOW_OUTPUT_TYPE, WorkflowNodeRegistry, type RunId,
+} from 'dsh-workflow-studio'
 import type { DagEdgeDefinition, DagEngineProvider, DagNodeDefinition, WorkflowRunRecord } from 'dsh-workflow-studio'
 import { HumanApprovalNode } from '../src/approval-node.ts'
 import { createBasicNodes } from '../src/basic-nodes.ts'
+import { SinkNode } from './fixture-nodes.ts'
 import { PLUGIN_NAME } from '../src/agent-node.ts'
 import { TestHosts, signalRequested, runEnded } from './host.ts'
 
@@ -40,22 +43,31 @@ function node(id: string, type: string, config: Record<string, unknown> = {}): D
   return { id: NodeId(id), type, config }
 }
 
-/** value(5) → approval → passed (gated by approved), rejectedPath (gated by rejected). */
+/** workflow input value(5) → approval → passed (gated by approved), rejectedPath (gated by rejected). */
 async function saveApprovalFlow(engine: DagEngineProvider, name = 'approval'): Promise<RunId> {
   const workflowId = await engine.save({
     name,
     nodes: [
-      node('value', 'input', { defaultValue: 5 }),
+      { ...node('in', WORKFLOW_INPUT_TYPE), outputs: [{ name: 'value', type: 'number', default: 5 }] },
       node('approval', 'human-approval', { question: 'Ship it?' }),
-      node('passed', 'output'),
-      node('rejectedPath', 'output'),
+      node('passed', 'sink'),
+      node('rejectedPath', 'sink'),
+      {
+        ...node('out', WORKFLOW_OUTPUT_TYPE),
+        inputs: [
+          { name: 'passed', type: 'any', required: false },
+          { name: 'rejected', type: 'any', required: false },
+        ],
+      },
     ],
     edges: [
-      edge('value', 'approval'),
+      edge('in', 'approval', 'value'),
       edge('approval', 'passed', 'output'),
       execEdge('approval', 'passed', 'approved'),
-      edge('value', 'rejectedPath'),
+      edge('in', 'rejectedPath', 'value'),
       execEdge('approval', 'rejectedPath', 'rejected'),
+      edge('passed', 'out', 'output', 'passed'),
+      edge('rejectedPath', 'out', 'output', 'rejected'),
     ],
   })
   return engine.start(workflowId).runId
@@ -70,7 +82,7 @@ describe('human-approval 节点', () => {
   afterEach(async () => { await hosts.cleanup() })
 
   async function start() {
-    return hosts.start(await hosts.root(), [...createBasicNodes(), new HumanApprovalNode()])
+    return hosts.start(await hosts.root(), [...createBasicNodes(), new HumanApprovalNode(), new SinkNode()])
   }
 
   it('向审批人展示输入；批准后传递输入并输出 approved 信号', async () => {
@@ -123,15 +135,20 @@ describe('human-approval 节点', () => {
     const workflowId = await engine.save({
       name: 'gated-approval',
       nodes: [
-        node('left', 'input', { defaultValue: 1 }),
-        node('right', 'input', { defaultValue: 2 }),
+        {
+          ...node('in', WORKFLOW_INPUT_TYPE),
+          outputs: [
+            { name: 'left', type: 'number', default: 1 },
+            { name: 'right', type: 'number', default: 2 },
+          ],
+        },
         node('check', 'compare', { expression: 'left > right' }),
         node('gate', 'branch'),
         node('approval', 'human-approval'),
       ],
       edges: [
-        edge('left', 'check', undefined, 'left'),
-        edge('right', 'check', undefined, 'right'),
+        edge('in', 'check', 'left', 'left'),
+        edge('in', 'check', 'right', 'right'),
         edge('check', 'gate', 'result', 'condition'),
         execEdge('gate', 'approval', 'true'),
       ],
@@ -144,7 +161,7 @@ describe('human-approval 节点', () => {
 
   it('重启后复用未回答的审批请求', async () => {
     const root = await hosts.root()
-    const executors = () => [...createBasicNodes(), new HumanApprovalNode()]
+    const executors = () => [...createBasicNodes(), new HumanApprovalNode(), new SinkNode()]
     const first = await hosts.start(root, executors())
     const requested = signalRequested(first.ctx, 'approval')
     const runId = await saveApprovalFlow(first.engine, 'approval-restart')

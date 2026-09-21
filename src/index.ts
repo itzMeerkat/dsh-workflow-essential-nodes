@@ -62,4 +62,4 @@ export type { AgentNodeChoices, AgentNodeSettings } from './agent-node.ts'
 export {
   APPROVAL_QUESTION_ID, APPROVAL_REQUEST_ID, DEFAULT_APPROVAL_QUESTION, HumanApprovalNode,
 } from './approval-node.ts'
-export { ArithmeticNode, CompareNode, InputNode, OutputNode, createBasicNodes } from './basic-nodes.ts'
+export { ArithmeticNode, CompareNode, createBasicNodes } from './basic-nodes.ts'

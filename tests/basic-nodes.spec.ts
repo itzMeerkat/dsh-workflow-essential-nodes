@@ -24,27 +24,6 @@ function buildCtx(overrides: Partial<NodeExecutionContext> = {}): NodeExecutionC
   }
 }
 
-describe('input 节点', () => {
-  const node = DEMO_NODES.find(n => n.type === 'input')!
-
-  it('应使用配置的默认值', async () => {
-    const result = await node.execute(buildCtx({ config: { defaultValue: 42 } }))
-    assert.equal(result.status, 'completed')
-    if (result.status === 'completed') assert.equal(result.outputs.output, 42)
-  })
-
-  it('无默认值时返回 0', async () => {
-    const result = await node.execute(buildCtx({ config: {} }))
-    assert.equal(result.status, 'completed')
-    if (result.status === 'completed') assert.equal(result.outputs.output, 0)
-  })
-
-  it('非法默认值应明确失败', async () => {
-    const result = await node.execute(buildCtx({ config: { defaultValue: '42' } }))
-    assert.deepEqual(result, { status: 'failed', error: 'defaultValue 必须为有限数值' })
-  })
-})
-
 describe('arithmetic 节点', () => {
   const node = DEMO_NODES.find(n => n.type === 'arithmetic')!
 

@@ -1,5 +1,7 @@
 /**
- * 基础演示节点：input/arithmetic/compare/output。
+ * 基础演示节点：arithmetic 和 compare。
+ *
+ * 常量输入和最终结果由工作流自身声明的输入输出端口承担，因此这里只有计算节点。
  * @module dsh-workflow-demo-node
  */
 
@@ -15,32 +17,6 @@ import type {
 const expressionEngine = new jexl.Jexl()
 expressionEngine.addBinaryOp('===', 20, (left: unknown, right: unknown) => left === right)
 expressionEngine.addBinaryOp('!==', 20, (left: unknown, right: unknown) => left !== right)
-
-/** input 节点：提供可配置的数值。 */
-export class InputNode extends WorkflowNode<{ output: number }> {
-  readonly type = 'input'
-  readonly label = '输入'
-  readonly description = '提供一个可配置的数值输入'
-  protected readonly ports: WorkflowNodePorts = {
-    inputs: [],
-    outputs: [{ name: 'output', type: 'number', description: '输出数值', display: 'value' }],
-  }
-  override readonly controls: readonly NodeControlDefinition[] = [{
-    name: 'defaultValue',
-    label: '数值',
-    kind: 'number',
-    defaultValue: 0,
-    step: 1,
-  }]
-
-  protected run(ctx: NodeExecutionContext): { output: number } {
-    const value = ctx.config.defaultValue ?? 0
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new NodeFailure('defaultValue 必须为有限数值')
-    }
-    return { output: value }
-  }
-}
 
 /** arithmetic 节点：四则运算。 */
 export class ArithmeticNode extends WorkflowNode<{ result: number }> {
@@ -132,24 +108,7 @@ export class CompareNode extends WorkflowNode<{ result: boolean }> {
   }
 }
 
-/** output 节点：输出最终结果。 */
-export class OutputNode extends WorkflowNode<{ output: unknown }> {
-  readonly type = 'output'
-  readonly label = '输出'
-  readonly description = '收集最终的运行结果'
-  protected readonly ports: WorkflowNodePorts = {
-    inputs: [{ name: 'input', type: 'any', description: '要输出的值' }],
-    outputs: [{ name: 'output', type: 'any', description: '最终结果', display: 'json' }],
-  }
-
-  protected run(ctx: NodeExecutionContext): { output: unknown } {
-    const value = ctx.inputs.input
-    ctx.log(`输出结果: ${JSON.stringify(value)}`)
-    return { output: value }
-  }
-}
-
 /** 所有基础演示节点的新实例。 */
 export function createBasicNodes(): WorkflowNodeExecutor[] {
-  return [new InputNode(), new ArithmeticNode(), new CompareNode(), new OutputNode()]
+  return [new ArithmeticNode(), new CompareNode()]
 }
