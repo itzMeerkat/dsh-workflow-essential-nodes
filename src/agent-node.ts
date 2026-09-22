@@ -10,8 +10,14 @@ import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, ModelSelection } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
-import type { AgentPreset } from '@deepseek-ai/dsh-agent-presets'
+import type { AgentPreset } from '@deepseek-ai/dsh-agent-preset-registry'
 import { createUserMessage, type LlmCallConfig } from '@deepseek-ai/dsh-llm'
+import type { ContextFormed } from '@deepseek-ai/dsh-llm'
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'workflow-agent-prompt': { kind: 'workflow-agent-prompt' } & ContextFormed
+  }
+}
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import { SessionLogOffset, SessionSeq, type Session, type SessionEvent, type SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-workspace'
@@ -24,7 +30,7 @@ import type {
   WorkflowNodePorts,
 } from 'dsh-workflow-studio'
 
-/** Cordis plugin name recorded as the node's source plugin and message source. */
+/** Cordis plugin name recorded as the node's source plugin. */
 export const PLUGIN_NAME = 'dsh-workflow-demo-node'
 
 /** Node type identifier in the Workflow Studio catalog. */
@@ -216,7 +222,9 @@ async function runPrompt(
   if (preset.broken !== undefined) {
     throw new NodeFailure(`agent preset "${preset.id}" cannot compose a Session: ${preset.broken}`)
   }
-  await ctx.agentPresets.standingKeyFor(preset.id)
+  // The registry retains the preset's composition per lease; hold one for the
+  // run so the mount survives until this prompt settles.
+  await using presetScope = await ctx.agentPresets.acquireScope(preset.id)
   signal.throwIfAborted()
 
   const workspace = await ctx.workspaceRegistry.create(settings.workspacePath)
@@ -275,7 +283,7 @@ async function sendAndWait(ctx: Context, agent: Agent, context: NodeExecutionCon
   try {
     agent.followup(createUserMessage({
       content: [{ type: 'text', text }],
-      source: { kind: 'plugin', plugin: PLUGIN_NAME },
+      source: { kind: 'workflow-agent-prompt' },
     }))
     await agent.whenIdle()
     await ctx.sessions.flush(agent.session)

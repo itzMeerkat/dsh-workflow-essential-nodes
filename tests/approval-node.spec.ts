@@ -47,6 +47,7 @@ function node(id: string, type: string, config: Record<string, unknown> = {}): D
 async function saveApprovalFlow(engine: DagEngineProvider, name = 'approval'): Promise<RunId> {
   const workflowId = await engine.save({
     name,
+    kind: 'run' as const,
     nodes: [
       { ...node('in', WORKFLOW_INPUT_TYPE), outputs: [{ name: 'value', type: 'number', default: 5 }] },
       node('approval', 'human-approval', { question: 'Ship it?' }),
@@ -134,6 +135,7 @@ describe('human-approval 节点', () => {
     ctx.on('dag/signal-requested', () => { asked = true })
     const workflowId = await engine.save({
       name: 'gated-approval',
+      kind: 'run' as const,
       nodes: [
         {
           ...node('in', WORKFLOW_INPUT_TYPE),
@@ -184,6 +186,7 @@ describe('human-approval 节点', () => {
     const { engine } = await start()
     const workflowId = await engine.save({
       name: 'bad-approval',
+      kind: 'run' as const,
       nodes: [node('approval', 'human-approval', { question: '  ' })],
       edges: [],
     })

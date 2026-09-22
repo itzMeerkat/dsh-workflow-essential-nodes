@@ -43,8 +43,8 @@ const EXISTING_ID = 'workflow-existing'
 
 const CHOICES: AgentNodeChoices = {
   agentPresets: [
-    { id: 'standard', trust: 'system', path: '/presets/standard/agent.cordis.yml', name: 'Standard' },
-    { id: 'minimal', trust: 'system', path: '/presets/minimal/agent.cordis.yml' },
+    { id: 'standard', name: 'Standard' },
+    { id: 'minimal' },
   ],
   defaultAgentPreset: 'standard',
   permissionPresets: ['workspace-write', 'danger-full-access'],
@@ -89,7 +89,7 @@ function scriptedHost(
       async resolve(id: string) {
         return id === brokenPreset ? { id, broken: 'missing agent.cordis.yml' } : { id }
       },
-      async standingKeyFor() { return 'key' },
+      async acquireScope() { return { key: 'key', async [Symbol.asyncDispose]() {} } },
       async mount(_agentCtx: unknown, id: string) { recorder.mounted.push(id) },
     },
     workspaceRegistry: {
@@ -251,7 +251,7 @@ describe('agent-prompt node', () => {
     assert.deepEqual(recorder.permissions, ['danger-full-access'])
     assert.deepEqual(recorder.prompts, [{
       content: [{ type: 'text', text: 'summarize README' }],
-      source: { kind: 'plugin', plugin: PLUGIN_NAME },
+      source: { kind: 'workflow-agent-prompt' },
     }])
     assert.equal(recorder.flushed, 1)
     assert.equal(recorder.disposed, 1)

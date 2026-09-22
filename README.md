@@ -7,7 +7,7 @@ kind: "package-bundle"
 
 ## Summary
 
-`dsh-workflow-demo-node` supplies every node that [Workflow Studio](../dsh-workflow-studio/README.md) offers; Studio itself registers none. One Cordis plugin registers four nodes, all built on Studio's `WorkflowNode` base class:
+`dsh-workflow-demo-node` supplies the example nodes of `run` workflows; [Workflow Studio](../dsh-workflow-studio/README.md) itself registers only its flow-control, boundary, and code nodes. One Cordis plugin registers four nodes, all built on Studio's `WorkflowNode` base class:
 
 | Type | Label | Purpose |
 |---|---|---|

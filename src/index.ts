@@ -1,7 +1,6 @@
 /**
  * dsh-workflow-demo-node plugin entry: registers the example Workflow Studio nodes —
- * `agent-prompt`, `human-approval`, and the basic `input`, `arithmetic`, `if`,
- * `compare`, and `output` nodes.
+ * `agent-prompt`, `human-approval`, and the basic `arithmetic` and `compare` nodes.
  * @module dsh-workflow-demo-node
  */
 
@@ -15,7 +14,7 @@ import { createBasicNodes } from './basic-nodes.ts'
 /** Stable Cordis plugin name, also recorded as every node's source plugin. */
 export const name = PLUGIN_NAME
 
-/** Services the nodes use; `agent-prompt` needs all but the registry. */
+/** Services the nodes use; `agent-prompt` needs all but the node registry. */
 export const inject = [
   'workflowNodeRegistry',
   'agents',
