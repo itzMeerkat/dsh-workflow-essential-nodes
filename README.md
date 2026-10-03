@@ -42,7 +42,7 @@ When the node runs, it starts a new agent Session composed from the selected age
 | Output | `output` | `string` | Last non-empty assistant text of the turn |
 | Output | `sessionId` | `string` | Session that ran the prompt |
 
-The node fails when the prompt is empty, the agent preset is broken, the permission preset is unknown, or the turn ends with any reason other than `completed`. A failed result still reports `sessionId` and any partial `output`. Cancelling the workflow run cancels the agent's active turn.
+The node fails when the prompt is empty, the agent preset is broken, the permission preset is unknown, or the turn ends with any reason other than `completed`. The error names the Session, which keeps any partial reply, and the node's notepad in the run record keeps its `sessionId`. Cancelling the workflow run cancels the agent's active turn.
 
 The preset and permission choices are read when the plugin starts. Restart the profile to offer presets created later.
 

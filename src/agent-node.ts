@@ -21,7 +21,7 @@ declare module '@deepseek-ai/dsh-llm' {
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import { SessionLogOffset, SessionSeq, type Session, type SessionEvent, type SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-workspace'
-import { NodeFailure, WorkflowNode } from 'dsh-workflow-studio'
+import { WorkflowNode } from 'dsh-workflow-studio'
 import type {
   JsonValue,
   NodeControlDefinition,
@@ -178,26 +178,25 @@ interface AgentNodeOutputs extends Record<string, unknown> {
 /**
  * Map a logged turn outcome to the node outputs.
  * @param outcome - final text and turn-end reason.
- * @param sessionId - Session that ran the prompt, reported on success and failure.
+ * @param sessionId - Session that ran the prompt, reported in the outputs and in every error.
  * @returns the outputs of a completed turn.
- * @throws NodeFailure carrying the same outputs when the turn did not complete.
+ * @throws when the turn did not complete; the partial reply stays in the Session, which the error names.
  */
 function toOutputs(outcome: RunOutcome, sessionId: SessionId): AgentNodeOutputs {
-  const outputs = { output: outcome.text, sessionId }
   const reason = outcome.reason
   if (reason === undefined) {
-    throw new NodeFailure(`agent Session ${sessionId} went idle without ending a turn`, outputs)
+    throw new Error(`agent Session ${sessionId} went idle without ending a turn`)
   }
   switch (reason.kind) {
     case 'completed':
-      return outputs
+      return { output: outcome.text, sessionId }
     case 'error':
-      throw new NodeFailure(`${reason.error.code}: ${reason.error.message}`, outputs)
+      throw new Error(`agent Session ${sessionId}: ${reason.error.code}: ${reason.error.message}`)
     case 'aborted':
-      throw new NodeFailure(`agent turn was cancelled (${reason.reason.kind})`, outputs)
+      throw new Error(`agent Session ${sessionId}: turn was cancelled (${reason.reason.kind})`)
     // TurnEndReasonMap is merge-extensible; every other reason is an unsuccessful end.
     default:
-      throw new NodeFailure(`agent turn ended with reason "${reason.kind}"`, outputs)
+      throw new Error(`agent Session ${sessionId}: turn ended with reason "${reason.kind}"`)
   }
 }
 
@@ -220,7 +219,7 @@ async function runPrompt(
   ctx.permissionPresets.resolve(request.permissionPreset)
   const preset = await ctx.agentPresets.resolve(request.agentPreset)
   if (preset.broken !== undefined) {
-    throw new NodeFailure(`agent preset "${preset.id}" cannot compose a Session: ${preset.broken}`)
+    throw new Error(`agent preset "${preset.id}" cannot compose a Session: ${preset.broken}`)
   }
   // The registry retains the preset's composition per lease; hold one for the
   // run so the mount survives until this prompt settles.
@@ -389,7 +388,7 @@ class AgentPromptNode extends WorkflowNode<AgentNodeOutputs> {
 
   protected async run(context: NodeExecutionContext): Promise<AgentNodeOutputs> {
     const request = resolveRequest(context)
-    if (typeof request === 'string') throw new NodeFailure(request)
+    if (typeof request === 'string') throw new TypeError(request)
     const saved = readNotepad(context.notepad.value)
     const reopened = saved === undefined ? undefined : await reopenPrompt(this.ctx, saved, request, context)
     return reopened ?? await runPrompt(this.ctx, this.settings, request, context)

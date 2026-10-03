@@ -6,7 +6,7 @@
  */
 
 import jexl from 'jexl'
-import { NodeFailure, WorkflowNode } from 'dsh-workflow-studio'
+import { WorkflowNode } from 'dsh-workflow-studio'
 import type {
   NodeControlDefinition,
   NodeExecutionContext,
@@ -48,10 +48,10 @@ export class ArithmeticNode extends WorkflowNode<{ result: number }> {
     const right = ctx.inputs.right
     if (typeof left !== 'number' || !Number.isFinite(left)
       || typeof right !== 'number' || !Number.isFinite(right)) {
-      throw new NodeFailure('left 和 right 必须为有限数值')
+      throw new TypeError('left 和 right 必须为有限数值')
     }
     const op = ctx.config.operator ?? 'add'
-    if (typeof op !== 'string') throw new NodeFailure('operator 必须为字符串')
+    if (typeof op !== 'string') throw new TypeError('operator 必须为字符串')
     switch (op) {
       case 'add':
         return { result: left + right }
@@ -60,10 +60,10 @@ export class ArithmeticNode extends WorkflowNode<{ result: number }> {
       case 'multiply':
         return { result: left * right }
       case 'divide':
-        if (right === 0) throw new NodeFailure('除数不能为 0')
+        if (right === 0) throw new RangeError('除数不能为 0')
         return { result: left / right }
       default:
-        throw new NodeFailure(`不支持的运算符: ${op}`)
+        throw new Error(`不支持的运算符: ${op}`)
     }
   }
 }
@@ -91,7 +91,7 @@ export class CompareNode extends WorkflowNode<{ result: boolean }> {
   protected run(ctx: NodeExecutionContext): { result: boolean } {
     const expression = ctx.config.expression ?? 'left === right'
     if (typeof expression !== 'string' || expression.trim() === '') {
-      throw new NodeFailure('expression 必须为非空字符串')
+      throw new TypeError('expression 必须为非空字符串')
     }
     let condition: unknown
     try {
@@ -101,9 +101,9 @@ export class CompareNode extends WorkflowNode<{ result: boolean }> {
       })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
-      throw new NodeFailure(`expression 执行失败: ${message}`)
+      throw new Error(`expression 执行失败: ${message}`)
     }
-    if (typeof condition !== 'boolean') throw new NodeFailure('expression 必须返回布尔值')
+    if (typeof condition !== 'boolean') throw new TypeError('expression 必须返回布尔值')
     return { result: condition }
   }
 }

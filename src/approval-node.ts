@@ -5,8 +5,7 @@
 
 import type { AskUserQuestionItem } from '@deepseek-ai/dsh-user-questions/types'
 import {
-  APPROVE_LABEL, NodeFailure, REJECT_LABEL, answerComment, askUser, isApproved,
-  toFailureResult, validateQuestionsSignal,
+  APPROVE_LABEL, REJECT_LABEL, answerComment, askUser, isApproved, validateQuestionsSignal,
 } from 'dsh-workflow-studio'
 import type {
   NodeControlDefinition, NodeExecutionContext, NodeExecutionResult, PortDefinition, WorkflowNodeExecutor,
@@ -80,21 +79,18 @@ export class HumanApprovalNode implements WorkflowNodeExecutor {
    * 分支结果随本次调用一起返回，不保存在执行器实例上：注册表中每个节点类型只有一个实例，
    * 同一实例会被并发的多个运行共用。
    * @param context - 引擎提供的执行上下文。
-   * @returns 完成结果及本次触发的执行引脚；配置非法时为失败结果。
+   * @returns 完成结果及本次触发的执行引脚。
+   * @throws 配置的问题不是非空字符串时。
    */
   async execute(context: NodeExecutionContext): Promise<NodeExecutionResult> {
-    try {
-      const { outputs, next } = await this.decide(context)
-      return { status: 'completed', outputs, next: [next] }
-    } catch (error: unknown) {
-      return toFailureResult(error)
-    }
+    const { outputs, next } = await this.decide(context)
+    return { outputs, next: [next] }
   }
 
   private async decide(context: NodeExecutionContext): Promise<{ outputs: ApprovalOutputs; next: string }> {
     const question = context.config.question ?? DEFAULT_APPROVAL_QUESTION
     if (typeof question !== 'string' || question.trim() === '') {
-      throw new NodeFailure('question 必须为非空字符串')
+      throw new TypeError('question 必须为非空字符串')
     }
     const detail = inputDetail(context)
     const item: AskUserQuestionItem = {

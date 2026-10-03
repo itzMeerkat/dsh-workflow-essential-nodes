@@ -32,8 +32,7 @@ describe('arithmetic 节点', () => {
       config: { operator: 'add' },
       inputs: { left: 10, right: 20 },
     }))
-    assert.equal(result.status, 'completed')
-    if (result.status === 'completed') assert.equal(result.outputs.result, 30)
+    assert.equal(result.outputs.result, 30)
   })
 
   it('应正确执行除法', async () => {
@@ -41,24 +40,21 @@ describe('arithmetic 节点', () => {
       config: { operator: 'divide' },
       inputs: { left: 10, right: 2 },
     }))
-    assert.equal(result.status, 'completed')
-    if (result.status === 'completed') assert.equal(result.outputs.result, 5)
+    assert.equal(result.outputs.result, 5)
   })
 
-  it('除零应返回明确错误', async () => {
-    const result = await node.execute(buildCtx({
+  it('除零应抛出明确错误', async () => {
+    await assert.rejects(Promise.resolve(node.execute(buildCtx({
       config: { operator: 'divide' },
       inputs: { left: 10, right: 0 },
-    }))
-    assert.deepEqual(result, { status: 'failed', error: '除数不能为 0' })
+    }))), /^RangeError: 除数不能为 0$/)
   })
 
   it('缺少操作数时不应默认补 0', async () => {
-    const result = await node.execute(buildCtx({
+    await assert.rejects(Promise.resolve(node.execute(buildCtx({
       config: { operator: 'add' },
       inputs: { left: 10 },
-    }))
-    assert.equal(result.status, 'failed')
+    }))), /必须为有限数值/)
   })
 })
 
@@ -70,10 +66,7 @@ describe('compare 节点', () => {
       config: { expression: 'left > right && right > 0' },
       inputs: { left: 3, right: 2 },
     }))
-    assert.equal(result.status, 'completed')
-    if (result.status === 'completed') {
-      assert.deepEqual(result.outputs, { result: true })
-    }
+    assert.deepEqual(result.outputs, { result: true })
   })
 
   it('表达式为 false 时输出 false', async () => {
@@ -81,10 +74,7 @@ describe('compare 节点', () => {
       config: { expression: 'left === right' },
       inputs: { left: 'a', right: 'b' },
     }))
-    assert.equal(result.status, 'completed')
-    if (result.status === 'completed') {
-      assert.deepEqual(result.outputs, { result: false })
-    }
+    assert.deepEqual(result.outputs, { result: false })
   })
 
   it('支持属性访问和三元表达式', async () => {
@@ -92,32 +82,25 @@ describe('compare 节点', () => {
       config: { expression: 'left.score >= right ? true : false' },
       inputs: { left: { score: 10 }, right: 8 },
     }))
-    assert.deepEqual(result, { status: 'completed', outputs: { result: true } })
+    assert.deepEqual(result, { outputs: { result: true } })
   })
 
   it('拒绝语法错误和非布尔结果', async () => {
-    const invalid = await node.execute(buildCtx({
+    await assert.rejects(Promise.resolve(node.execute(buildCtx({
       config: { expression: 'left >' },
       inputs: { left: 1, right: 0 },
-    }))
-    assert.equal(invalid.status, 'failed')
-    if (invalid.status === 'failed') assert.match(invalid.error, /expression 执行失败/)
+    }))), /expression 执行失败/)
 
-    assert.deepEqual(
-      await node.execute(buildCtx({
-        config: { expression: 'left + right' },
-        inputs: { left: 1, right: 2 },
-      })),
-      { status: 'failed', error: 'expression 必须返回布尔值' },
-    )
+    await assert.rejects(Promise.resolve(node.execute(buildCtx({
+      config: { expression: 'left + right' },
+      inputs: { left: 1, right: 2 },
+    }))), /^TypeError: expression 必须返回布尔值$/)
   })
 
   it('不允许通过表达式调用对象构造器', async () => {
-    const result = await node.execute(buildCtx({
+    await assert.rejects(Promise.resolve(node.execute(buildCtx({
       config: { expression: 'left.constructor.constructor("return process")()' },
       inputs: { left: {}, right: null },
-    }))
-    assert.equal(result.status, 'failed')
-    if (result.status === 'failed') assert.match(result.error, /expression 执行失败/)
+    }))), /expression 执行失败/)
   })
 })

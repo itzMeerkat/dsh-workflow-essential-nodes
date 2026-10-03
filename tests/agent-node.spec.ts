@@ -6,7 +6,7 @@ import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
 import { WorkflowNodeRegistry, RunId } from 'dsh-workflow-studio'
-import type { NodeExecutionContext, NodeExecutionResult, WorkflowNodeExecutor } from 'dsh-workflow-studio'
+import type { NodeExecutionContext, WorkflowNodeExecutor } from 'dsh-workflow-studio'
 import { AGENT_NODE_TYPE, CONTINUE_PROMPT, PLUGIN_NAME, createAgentNode } from '../src/agent-node.ts'
 import type { AgentNodeChoices } from '../src/agent-node.ts'
 
@@ -243,7 +243,7 @@ describe('agent-prompt node', () => {
 
     const sessionId = recorder.created[0]?.sessionId
     assert.ok(sessionId?.startsWith('workflow-'))
-    assert.deepEqual(result, { status: 'completed', outputs: { output: 'final answer', sessionId } })
+    assert.deepEqual(result, { outputs: { output: 'final answer', sessionId } })
     assert.deepEqual(recorder.created[0]?.meta, { cwd: '/work/project', agentPreset: 'minimal' })
     assert.deepEqual(recorder.created[0]?.agentOptions, { provider: 'deepseek', model: 'deepseek-chat' })
     assert.deepEqual(recorder.mounted, ['minimal'])
@@ -268,7 +268,7 @@ describe('agent-prompt node', () => {
     assert.deepEqual(await run({ prompt: 'upstream text' }), [{ type: 'text', text: 'upstream text' }])
   })
 
-  it('fails with the model error and keeps partial output', async () => {
+  it('throws the model error naming the Session, which keeps the partial reply', async () => {
     const { host, recorder } = scriptedHost({
       kind: 'events',
       events: [
@@ -276,20 +276,20 @@ describe('agent-prompt node', () => {
         turnEnd({ kind: 'error', error: { code: 'rate_limited', message: 'slow down' } }),
       ],
     })
-    const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG))
-    assert.deepEqual(result, {
-      status: 'failed',
-      error: 'rate_limited: slow down',
-      outputs: { output: 'partial', sessionId: recorder.created[0]?.sessionId },
-    })
+    await assert.rejects(
+      Promise.resolve(node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG))),
+      (error: unknown) => error instanceof Error
+        && error.message === `agent Session ${recorder.created[0]?.sessionId}: rate_limited: slow down`,
+    )
     assert.equal(recorder.disposed, 1)
   })
 
-  it('reports other turn-end reasons as failures', async () => {
+  it('throws for other turn-end reasons', async () => {
     const { host } = scriptedHost({ kind: 'events', events: [turnEnd({ kind: 'max-tokens' })] })
-    const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG))
-    assert.equal(result.status, 'failed')
-    assert.match((result as Extract<NodeExecutionResult, { status: 'failed' }>).error, /"max-tokens"/)
+    await assert.rejects(
+      Promise.resolve(node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG))),
+      /"max-tokens"/,
+    )
   })
 
   it('rejects malformed input and config before creating a Session', async () => {
@@ -303,9 +303,7 @@ describe('agent-prompt node', () => {
       [{ prompt: 'go' }, { agentPreset: 'standard' }, /permissionPreset must be/],
     ]
     for (const [inputs, config, error] of cases) {
-      const result = await executor.execute(executionContext(inputs, config))
-      assert.equal(result.status, 'failed')
-      assert.match((result as Extract<NodeExecutionResult, { status: 'failed' }>).error, error)
+      await assert.rejects(Promise.resolve(executor.execute(executionContext(inputs, config))), error)
     }
     assert.deepEqual(recorder.created, [])
   })
@@ -317,11 +315,10 @@ describe('agent-prompt node', () => {
       Promise.resolve(executor.execute(executionContext({ prompt: 'go' }, { ...VALID_CONFIG, permissionPreset: 'root' }))),
       /^Error: unknown permission preset "root"$/,
     )
-    const broken = await executor.execute(executionContext({ prompt: 'go' }, { ...VALID_CONFIG, agentPreset: 'standard' }))
-    assert.deepEqual(broken, {
-      status: 'failed',
-      error: 'agent preset "standard" cannot compose a Session: missing agent.cordis.yml',
-    })
+    await assert.rejects(
+      Promise.resolve(executor.execute(executionContext({ prompt: 'go' }, { ...VALID_CONFIG, agentPreset: 'standard' }))),
+      /^Error: agent preset "standard" cannot compose a Session: missing agent.cordis.yml$/,
+    )
     assert.deepEqual(recorder.created, [])
   })
 
@@ -340,10 +337,8 @@ describe('agent-prompt node', () => {
     const pending = node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, controller.signal))
     while (recorder.prompts.length === 0) await new Promise(resolve => setImmediate(resolve))
     controller.abort()
-    const result = await pending
+    await assert.rejects(Promise.resolve(pending), /cancelled \(user\)/)
     assert.deepEqual(recorder.cancels, [{ kind: 'user' }])
-    assert.equal(result.status, 'failed')
-    assert.match((result as Extract<NodeExecutionResult, { status: 'failed' }>).error, /cancelled \(user\)/)
     assert.equal(recorder.disposed, 1)
   })
 })
@@ -386,7 +381,7 @@ describe('agent-prompt re-calls', () => {
       events: prior({ type: 'turn/start' }, assistant('done before'), turnEnd({ kind: 'completed' })),
     })
     const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, memoryNotepad(saved)))
-    assert.deepEqual(result, { status: 'completed', outputs: { output: 'done before', sessionId: EXISTING_ID } })
+    assert.deepEqual(result, { outputs: { output: 'done before', sessionId: EXISTING_ID } })
     assert.deepEqual(recorder.resumed, [EXISTING_ID])
     assert.deepEqual(recorder.mounted, ['minimal'])
     assert.deepEqual(recorder.prompts, [])
@@ -400,7 +395,7 @@ describe('agent-prompt re-calls', () => {
       events: prior({ type: 'turn/start' }, assistant('half'), turnEnd({ kind: 'aborted', reason: { kind: 'disposed' } })),
     })
     const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, memoryNotepad(saved)))
-    assert.deepEqual(result, { status: 'completed', outputs: { output: 'finished now', sessionId: EXISTING_ID } })
+    assert.deepEqual(result, { outputs: { output: 'finished now', sessionId: EXISTING_ID } })
     assert.deepEqual(recorder.prompts.map(prompt => prompt.content), [[{ type: 'text', text: CONTINUE_PROMPT }]])
   })
 
@@ -410,7 +405,7 @@ describe('agent-prompt re-calls', () => {
       events: prior(),
     })
     const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, memoryNotepad(saved)))
-    assert.equal(result.status, 'completed')
+    assert.equal(result.outputs.output, 'answer')
     assert.deepEqual(recorder.prompts.map(prompt => prompt.content), [[{ type: 'text', text: 'go' }]])
   })
 
@@ -420,7 +415,7 @@ describe('agent-prompt re-calls', () => {
       events: prior({ type: 'turn/start' }, assistant('live answer'), turnEnd({ kind: 'completed' })),
     })
     const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, memoryNotepad(saved)))
-    assert.deepEqual(result, { status: 'completed', outputs: { output: 'live answer', sessionId: EXISTING_ID } })
+    assert.deepEqual(result, { outputs: { output: 'live answer', sessionId: EXISTING_ID } })
     assert.deepEqual(recorder.resumed, [])
     assert.equal(recorder.disposed, 0)
   })
@@ -432,7 +427,7 @@ describe('agent-prompt re-calls', () => {
     })
     const notepad = memoryNotepad(saved)
     const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, notepad))
-    assert.equal(result.status, 'completed')
+    assert.equal(result.outputs.output, 'fresh')
     assert.equal(recorder.created.length, 1)
     assert.equal((notepad.value as { sessionId: string }).sessionId, recorder.created[0]?.sessionId)
   })
