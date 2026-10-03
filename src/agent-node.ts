@@ -21,7 +21,7 @@ declare module '@deepseek-ai/dsh-llm' {
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import { SessionLogOffset, SessionSeq, type Session, type SessionEvent, type SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-workspace'
-import { WorkflowNode } from 'dsh-workflow-studio'
+import { WorkflowNode, messageOf } from 'dsh-workflow-studio'
 import type {
   JsonValue,
   NodeControlDefinition,
@@ -198,10 +198,6 @@ function toOutputs(outcome: RunOutcome, sessionId: SessionId): AgentNodeOutputs 
     default:
       throw new Error(`agent Session ${sessionId}: turn ended with reason "${reason.kind}"`)
   }
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 /**

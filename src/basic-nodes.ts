@@ -6,7 +6,7 @@
  */
 
 import jexl from 'jexl'
-import { WorkflowNode } from 'dsh-workflow-studio'
+import { WorkflowNode, messageOf } from 'dsh-workflow-studio'
 import type {
   NodeControlDefinition,
   NodeExecutionContext,
@@ -100,8 +100,7 @@ export class CompareNode extends WorkflowNode<{ result: boolean }> {
         right: ctx.inputs.right,
       })
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`expression 执行失败: ${message}`)
+      throw new Error(`expression 执行失败: ${messageOf(error)}`)
     }
     if (typeof condition !== 'boolean') throw new TypeError('expression 必须返回布尔值')
     return { result: condition }
