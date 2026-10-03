@@ -61,6 +61,8 @@ export class HumanApprovalNode implements WorkflowNodeExecutor {
     { name: 'comment', type: 'string', description: '审批人填写的自定义说明', display: 'value' },
   ]
   readonly execOutputs: readonly string[] = [APPROVED_PIN, REJECTED_PIN]
+  /** 每次审批恰好触发两者之一，所以它是决策节点：两侧的值汇合到 merge 时不被报告为可能同时送达。 */
+  readonly exclusiveExecOutputs = true
   /** 审批答案必须匹配节点提出的问题；格式错误在提交时被拒绝，而不是使节点失败。 */
   readonly validateSignal = validateQuestionsSignal
   readonly controls: readonly NodeControlDefinition[] = [
