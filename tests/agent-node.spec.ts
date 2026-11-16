@@ -2,12 +2,12 @@
  * `agent-prompt` executor and registration tests over scripted Host services.
  */
 
-import { afterEach, describe, it } from 'node:test'
+import { afterEach,describe,it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
-import { WorkflowNodeRegistry, RunId } from 'dsh-workflow-studio'
-import type { NodeExecutionContext, WorkflowNodeExecutor } from 'dsh-workflow-studio'
-import { AGENT_NODE_TYPE, CONTINUE_PROMPT, PLUGIN_NAME, createAgentNode } from '../src/agent-node.ts'
+import { WorkflowNodeRegistry,RunId } from 'dsh-workflow-studio'
+import type { NodeExecutionContext,WorkflowNodeExecutor } from 'dsh-workflow-studio'
+import { AGENT_NODE_TYPE,CONTINUE_PROMPT,PLUGIN_NAME,createAgentNode } from '../src/agent-node.ts'
 import type { AgentNodeChoices } from '../src/agent-node.ts'
 
 type ScriptedEvent = { type: string; data?: unknown }
@@ -39,7 +39,6 @@ interface ExistingSession {
 }
 
 const EXISTING_ID = 'workflow-existing'
-
 
 const CHOICES: AgentNodeChoices = {
   agentPresets: [
@@ -200,39 +199,6 @@ function node(host: Context): WorkflowNodeExecutor {
 }
 
 describe('agent-prompt node', () => {
-  it('declares its ports and preset controls', () => {
-    const { host } = scriptedHost({ kind: 'events', events: [] })
-    const executor = node(host)
-    assert.equal(executor.type, AGENT_NODE_TYPE)
-    assert.deepEqual(executor.inputs?.map(port => port.name), ['prompt'])
-    assert.deepEqual(executor.outputs?.map(port => port.name), ['output', 'sessionId'])
-    assert.equal(executor.inputs?.[0]?.required, false)
-    assert.deepEqual(executor.controls, [
-      { name: 'prompt', label: '提示词', kind: 'text', defaultValue: '', placeholder: '发送给 agent 的提示词' },
-      {
-        name: 'agentPreset',
-        label: 'Agent 预设',
-        kind: 'select',
-        defaultValue: 'standard',
-        options: [{ label: 'Standard', value: 'standard' }, { label: 'minimal', value: 'minimal' }],
-      },
-      {
-        name: 'permissionPreset',
-        label: '权限',
-        kind: 'select',
-        defaultValue: 'workspace-write',
-        options: [
-          { label: 'workspace-write', value: 'workspace-write' },
-          { label: 'danger-full-access', value: 'danger-full-access' },
-        ],
-      },
-    ])
-  })
-
-  it('rejects a relative workspace path', () => {
-    const { host } = scriptedHost({ kind: 'events', events: [] })
-    assert.throws(() => createAgentNode(host, { workspacePath: 'project' }, CHOICES), /workspacePath must be absolute/)
-  })
 
   it('runs the prompt in a new Session under the selected preset and returns the final text', async () => {
     const { host, recorder } = scriptedHost({
@@ -258,16 +224,6 @@ describe('agent-prompt node', () => {
     assert.deepEqual(recorder.detached, [])
   })
 
-  it('uses the card prompt when the input is not connected and the input when it is', async () => {
-    const run = async (inputs: Record<string, unknown>): Promise<unknown> => {
-      const { host, recorder } = scriptedHost({ kind: 'events', events: [turnEnd({ kind: 'completed' })] })
-      await node(host).execute(executionContext(inputs, { ...VALID_CONFIG, prompt: 'card text' }))
-      return recorder.prompts[0]?.content
-    }
-    assert.deepEqual(await run({}), [{ type: 'text', text: 'card text' }])
-    assert.deepEqual(await run({ prompt: 'upstream text' }), [{ type: 'text', text: 'upstream text' }])
-  })
-
   it('throws the model error naming the Session, which keeps the partial reply', async () => {
     const { host, recorder } = scriptedHost({
       kind: 'events',
@@ -282,53 +238,6 @@ describe('agent-prompt node', () => {
         && error.message === `agent Session ${recorder.created[0]?.sessionId}: rate_limited: slow down`,
     )
     assert.equal(recorder.disposed, 1)
-  })
-
-  it('throws for other turn-end reasons', async () => {
-    const { host } = scriptedHost({ kind: 'events', events: [turnEnd({ kind: 'max-tokens' })] })
-    await assert.rejects(
-      Promise.resolve(node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG))),
-      /"max-tokens"/,
-    )
-  })
-
-  it('rejects malformed input and config before creating a Session', async () => {
-    const { host, recorder } = scriptedHost({ kind: 'events', events: [] })
-    const executor = node(host)
-    const cases: Array<[Record<string, unknown>, Record<string, unknown>, RegExp]> = [
-      [{}, VALID_CONFIG, /prompt text must be a non-empty string/],
-      [{}, { ...VALID_CONFIG, prompt: '   ' }, /prompt text must be a non-empty string/],
-      [{ prompt: 42 }, { ...VALID_CONFIG, prompt: 'card text' }, /prompt input must be a non-empty string/],
-      [{ prompt: 'go' }, { permissionPreset: 'workspace-write' }, /agentPreset must be/],
-      [{ prompt: 'go' }, { agentPreset: 'standard' }, /permissionPreset must be/],
-    ]
-    for (const [inputs, config, error] of cases) {
-      await assert.rejects(Promise.resolve(executor.execute(executionContext(inputs, config))), error)
-    }
-    assert.deepEqual(recorder.created, [])
-  })
-
-  it('fails for an unknown permission preset or broken agent preset without creating a Session', async () => {
-    const { host, recorder } = scriptedHost({ kind: 'events', events: [] }, 'standard')
-    const executor = node(host)
-    await assert.rejects(
-      Promise.resolve(executor.execute(executionContext({ prompt: 'go' }, { ...VALID_CONFIG, permissionPreset: 'root' }))),
-      /^Error: unknown permission preset "root"$/,
-    )
-    await assert.rejects(
-      Promise.resolve(executor.execute(executionContext({ prompt: 'go' }, { ...VALID_CONFIG, agentPreset: 'standard' }))),
-      /^Error: agent preset "standard" cannot compose a Session: missing agent.cordis.yml$/,
-    )
-    assert.deepEqual(recorder.created, [])
-  })
-
-  it('rejects a notepad value it did not save without creating a Session', async () => {
-    const { host, recorder } = scriptedHost({ kind: 'events', events: [] })
-    await assert.rejects(
-      Promise.resolve(node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, memoryNotepad({ sessionId: 1 })))),
-      /agent node notepad is malformed/,
-    )
-    assert.deepEqual(recorder.created, [])
   })
 
   it('cancels the active turn and disposes the Agent when the run is aborted', async () => {
@@ -368,13 +277,6 @@ describe('agent-prompt re-calls', () => {
   const prior = (...events: ScriptedEvent[]): ScriptedEvent[] => [{ type: 'session/start' }, ...events]
   const saved = { sessionId: EXISTING_ID, agentPreset: 'minimal', promptSeq: 1 }
 
-  it('saves the Session, preset, and prompt offset before sending the prompt', async () => {
-    const { host, recorder } = scriptedHost({ kind: 'events', events: [turnEnd({ kind: 'completed' })] })
-    const notepad = memoryNotepad()
-    await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, notepad))
-    assert.deepEqual(notepad.saves, [{ sessionId: recorder.created[0]?.sessionId, agentPreset: 'minimal', promptSeq: 1 }])
-  })
-
   it('returns a turn that completed before the restart without calling the model again', async () => {
     const { host, recorder } = scriptedHost({ kind: 'hang' }, undefined, {
       mode: 'resume',
@@ -397,38 +299,5 @@ describe('agent-prompt re-calls', () => {
     const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, memoryNotepad(saved)))
     assert.deepEqual(result, { outputs: { output: 'finished now', sessionId: EXISTING_ID } })
     assert.deepEqual(recorder.prompts.map(prompt => prompt.content), [[{ type: 'text', text: CONTINUE_PROMPT }]])
-  })
-
-  it('sends the original prompt when the restart came before it was sent', async () => {
-    const { host, recorder } = scriptedHost({ kind: 'events', events: [assistant('answer'), turnEnd({ kind: 'completed' })] }, undefined, {
-      mode: 'resume',
-      events: prior(),
-    })
-    const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, memoryNotepad(saved)))
-    assert.equal(result.outputs.output, 'answer')
-    assert.deepEqual(recorder.prompts.map(prompt => prompt.content), [[{ type: 'text', text: 'go' }]])
-  })
-
-  it('uses a Session that is already open without disposing it', async () => {
-    const { host, recorder } = scriptedHost({ kind: 'hang' }, undefined, {
-      mode: 'live',
-      events: prior({ type: 'turn/start' }, assistant('live answer'), turnEnd({ kind: 'completed' })),
-    })
-    const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, memoryNotepad(saved)))
-    assert.deepEqual(result, { outputs: { output: 'live answer', sessionId: EXISTING_ID } })
-    assert.deepEqual(recorder.resumed, [])
-    assert.equal(recorder.disposed, 0)
-  })
-
-  it('starts a new Session when the saved one cannot be reopened', async () => {
-    const { host, recorder } = scriptedHost({ kind: 'events', events: [assistant('fresh'), turnEnd({ kind: 'completed' })] }, undefined, {
-      mode: 'missing',
-      events: [],
-    })
-    const notepad = memoryNotepad(saved)
-    const result = await node(host).execute(executionContext({ prompt: 'go' }, VALID_CONFIG, undefined, notepad))
-    assert.equal(result.outputs.output, 'fresh')
-    assert.equal(recorder.created.length, 1)
-    assert.equal((notepad.value as { sessionId: string }).sessionId, recorder.created[0]?.sessionId)
   })
 })

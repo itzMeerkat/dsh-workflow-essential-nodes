@@ -2,7 +2,7 @@
  * 测试用节点：插件自身不提供的通用节点。
  */
 
-import { WorkflowNode, type NodeExecutionContext, type WorkflowNodePorts } from 'dsh-workflow-studio'
+import { WorkflowNode,type NodeExecutionContext,type WorkflowNodePorts } from 'dsh-workflow-studio'
 
 /**
  * `sink`：原样输出送达的值。

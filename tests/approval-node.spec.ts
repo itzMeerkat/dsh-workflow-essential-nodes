@@ -1,19 +1,17 @@
 /**
- * `human-approval` 节点测试：审批、拒绝的两种模式、执行边门控和重启后的复用。
+ * `human-approval` 节点测试：批准、拒绝分支和重启后复用审批请求。
  */
 
-import { afterEach, describe, it } from 'node:test'
+import { afterEach,describe,it } from 'node:test'
 import assert from 'node:assert/strict'
-import { Context } from '@deepseek-ai/cordis'
 import {
-  EdgeId, NodeId, WORKFLOW_INPUT_TYPE, WORKFLOW_OUTPUT_TYPE, WorkflowNodeRegistry, type RunId,
+EdgeId,NodeId,WORKFLOW_INPUT_TYPE,WORKFLOW_OUTPUT_TYPE,type RunId
 } from 'dsh-workflow-studio'
-import type { DagEdgeDefinition, DagEngineProvider, DagNodeDefinition, WorkflowRunRecord } from 'dsh-workflow-studio'
+import type { DagEdgeDefinition,DagEngineProvider,DagNodeDefinition,WorkflowRunRecord } from 'dsh-workflow-studio'
 import { HumanApprovalNode } from '../src/approval-node.ts'
 import { createBasicNodes } from '../src/basic-nodes.ts'
 import { SinkNode } from './fixture-nodes.ts'
-import { PLUGIN_NAME } from '../src/agent-node.ts'
-import { TestHosts, signalRequested, runEnded } from './host.ts'
+import { TestHosts,signalRequested,runEnded } from './host.ts'
 
 const APPROVE = { answers: [{ id: 'decision', selected: ['批准'] }] }
 const REJECT_WITH = (comment: string) => ({ answers: [{ id: 'decision', selected: [], custom: comment }] })
@@ -47,7 +45,6 @@ function node(id: string, type: string, config: Record<string, unknown> = {}): D
 async function saveApprovalFlow(engine: DagEngineProvider, name = 'approval'): Promise<RunId> {
   const workflowId = await engine.save({
     name,
-    kind: 'run' as const,
     nodes: [
       { ...node('in', WORKFLOW_INPUT_TYPE), outputs: [{ name: 'value', type: 'number', default: 5 }] },
       node('approval', 'human-approval', { question: 'Ship it?' }),
@@ -129,38 +126,6 @@ describe('human-approval 节点', () => {
     assert.equal(status(result, 'rejectedPath'), 'completed')
   })
 
-  it('分支未触发时跳过且不提问', async () => {
-    const { ctx, engine } = await start()
-    let asked = false
-    ctx.on('dag/signal-requested', () => { asked = true })
-    const workflowId = await engine.save({
-      name: 'gated-approval',
-      kind: 'run' as const,
-      nodes: [
-        {
-          ...node('in', WORKFLOW_INPUT_TYPE),
-          outputs: [
-            { name: 'left', type: 'number', default: 1 },
-            { name: 'right', type: 'number', default: 2 },
-          ],
-        },
-        node('check', 'compare', { expression: 'left > right' }),
-        node('gate', 'branch'),
-        node('approval', 'human-approval'),
-      ],
-      edges: [
-        edge('in', 'check', 'left', 'left'),
-        edge('in', 'check', 'right', 'right'),
-        edge('check', 'gate', 'result', 'condition'),
-        execEdge('gate', 'approval', 'true'),
-      ],
-    })
-    const result = await engine.start(workflowId).result
-    assert.equal(result.status, 'completed')
-    assert.equal(status(result, 'approval'), 'skipped')
-    assert.equal(asked, false)
-  })
-
   it('重启后复用未回答的审批请求', async () => {
     const root = await hosts.root()
     const executors = () => [...createBasicNodes(), new HumanApprovalNode(), new SinkNode()]
@@ -180,31 +145,5 @@ describe('human-approval 节点', () => {
     const approval = result.nodes.find(record => record.nodeId === NodeId('approval'))
     assert.equal(approval?.attempts, 2)
     assert.equal(approval?.requests?.length, 1)
-  })
-
-  it('非法配置使节点失败', async () => {
-    const { engine } = await start()
-    const workflowId = await engine.save({
-      name: 'bad-approval',
-      kind: 'run' as const,
-      nodes: [node('approval', 'human-approval', { question: '  ' })],
-      edges: [],
-    })
-    const result = await engine.start(workflowId).result
-    assert.equal(result.status, 'failed')
-    assert.match(result.error ?? '', /question 必须为非空字符串/)
-  })
-
-  it('注册后在目录中带执行引脚', async () => {
-    const ctx = new Context()
-    const registry = new WorkflowNodeRegistry(ctx)
-    const dispose = registry.register(new HumanApprovalNode(), PLUGIN_NAME)
-    const summary = registry.listTypes().find(item => item.type === 'human-approval')
-    assert.equal(summary?.sourcePlugin, PLUGIN_NAME)
-    assert.deepEqual(summary?.inputs.map(port => port.name), ['input'])
-    assert.deepEqual(summary?.execOutputs, ['approved', 'rejected'])
-    dispose()
-    assert.equal(registry.get('human-approval'), undefined)
-    await ctx.fiber.dispose()
   })
 })

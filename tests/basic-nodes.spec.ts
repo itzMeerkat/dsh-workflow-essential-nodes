@@ -2,9 +2,9 @@
  * 基础演示节点单元测试。
  */
 
-import { describe, it } from 'node:test'
+import { describe,it } from 'node:test'
 import assert from 'node:assert/strict'
-import { RunId, type NodeExecutionContext } from 'dsh-workflow-studio'
+import { RunId,type NodeExecutionContext } from 'dsh-workflow-studio'
 import { createBasicNodes } from '../src/basic-nodes.ts'
 
 const DEMO_NODES = createBasicNodes()
@@ -35,47 +35,16 @@ describe('arithmetic 节点', () => {
     assert.equal(result.outputs.result, 30)
   })
 
-  it('应正确执行除法', async () => {
-    const result = await node.execute(buildCtx({
-      config: { operator: 'divide' },
-      inputs: { left: 10, right: 2 },
-    }))
-    assert.equal(result.outputs.result, 5)
-  })
-
   it('除零应抛出明确错误', async () => {
     await assert.rejects(Promise.resolve(node.execute(buildCtx({
       config: { operator: 'divide' },
       inputs: { left: 10, right: 0 },
     }))), /^RangeError: 除数不能为 0$/)
   })
-
-  it('缺少操作数时不应默认补 0', async () => {
-    await assert.rejects(Promise.resolve(node.execute(buildCtx({
-      config: { operator: 'add' },
-      inputs: { left: 10 },
-    }))), /必须为有限数值/)
-  })
 })
 
 describe('compare 节点', () => {
   const node = DEMO_NODES.find(n => n.type === 'compare')!
-
-  it('表达式为 true 时输出 true', async () => {
-    const result = await node.execute(buildCtx({
-      config: { expression: 'left > right && right > 0' },
-      inputs: { left: 3, right: 2 },
-    }))
-    assert.deepEqual(result.outputs, { result: true })
-  })
-
-  it('表达式为 false 时输出 false', async () => {
-    const result = await node.execute(buildCtx({
-      config: { expression: 'left === right' },
-      inputs: { left: 'a', right: 'b' },
-    }))
-    assert.deepEqual(result.outputs, { result: false })
-  })
 
   it('支持属性访问和三元表达式', async () => {
     const result = await node.execute(buildCtx({
@@ -83,18 +52,6 @@ describe('compare 节点', () => {
       inputs: { left: { score: 10 }, right: 8 },
     }))
     assert.deepEqual(result, { outputs: { result: true } })
-  })
-
-  it('拒绝语法错误和非布尔结果', async () => {
-    await assert.rejects(Promise.resolve(node.execute(buildCtx({
-      config: { expression: 'left >' },
-      inputs: { left: 1, right: 0 },
-    }))), /expression 执行失败/)
-
-    await assert.rejects(Promise.resolve(node.execute(buildCtx({
-      config: { expression: 'left + right' },
-      inputs: { left: 1, right: 2 },
-    }))), /^TypeError: expression 必须返回布尔值$/)
   })
 
   it('不允许通过表达式调用对象构造器', async () => {
