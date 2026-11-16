@@ -21,6 +21,9 @@
     "cordis.patch.yml"
   ],
   "license": "Apache-2.0",
+  "engines": {
+    "dsh": ">=0.2.2-rc.3 <0.3.0"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -33,26 +36,28 @@
     "typecheck": "tsc -p tsconfig.test.json"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/cordis": "^4.1.0",
     "dsh-workflow-studio": "*"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-llm": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-session": "0.1.7-alpha.1",
-    "@deepseek-ai/schemastery": "^3.18.3",
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-session": "0.2.2-rc.3",
+    "@deepseek-ai/schemastery": "^3.19.0",
     "jexl": "2.3.0"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-agent": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-agent-default-model": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-agent-preset-registry": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-permission-presets": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-storage": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-storage-domain": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-storage-json": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-user-questions": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-workspace": "0.1.7-alpha.1",
+    "@deepseek-ai/cordis": "^4.1.0",
+    "@deepseek-ai/cordis-plugin-include": "~1.1.0",
+    "@deepseek-ai/cordis-plugin-loader": "~1.1.0",
+    "@deepseek-ai/dsh-agent": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-agent-default-model": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-permission-presets": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-storage": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-storage-domain": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-storage-json": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-user-questions": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-workspace": "0.2.2-rc.3",
     "@types/jexl": "^2.3.4",
     "@types/node": "^24.10.0",
     "dsh-workflow-studio": "link:../dsh-workflow-studio",
